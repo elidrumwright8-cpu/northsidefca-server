@@ -10,6 +10,32 @@ const KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
 
 app.get('/prayer', async (req, res) => {
   try {
+    const { topic, focus } = req.query;
+
+    const sportsFocuses = new Set(['My Team', 'My Coaches']);
+    const isSports = focus && sportsFocuses.has(focus);
+
+    const focusDescriptions = {
+      'My Team':       'for my sports team and teammates',
+      'My Coaches':    'for my coaches who guide and mentor me',
+      'My School':     'for my school, its students, and teachers',
+      'My Family':     'for my family, their health, unity, and faith',
+      'Our Nation':    'for our nation, its leaders, and all its people',
+      'Everyday Life': 'for guidance and strength in everyday life',
+    };
+
+    const focusPhrase = (focus && focusDescriptions[focus]) || 'for a high school student';
+    let prompt = `Write a short, heartfelt prayer ${focusPhrase}`;
+    if (topic?.trim()) {
+      prompt += `, specifically about ${topic.trim()}`;
+    }
+    if (isSports) {
+      prompt += '. Use language that naturally relates to sports, teamwork, and athletic life.';
+    } else {
+      prompt += '. Do not use sports or athletic language — keep the tone and imagery fitting for the focus area.';
+    }
+    prompt += ' Keep it 3–5 sentences. Return prayer text only, no headings or labels.';
+
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -20,7 +46,7 @@ app.get('/prayer', async (req, res) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 300,
-        messages: [{role:'user',content:'Write a short morning prayer for high school athletes. 3-5 sentences. Prayer text only.'}]
+        messages: [{ role: 'user', content: prompt }]
       })
     });
     const d = await r.json();
