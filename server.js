@@ -44,7 +44,7 @@ app.get('/prayer', async (req, res) => {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 300,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -67,7 +67,7 @@ app.get('/devotional', async (req, res) => {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1000,
         messages: [{role:'user',content:'Write a devotional for high school FCA athletes. Return ONLY valid JSON: {"title":"","tag":"","verse":"","reference":"","body":"","reflections":["","",""]}'}]
       })
