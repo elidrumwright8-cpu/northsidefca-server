@@ -40,7 +40,7 @@ async function sendExpoPush(tokens, title, body, data = {}) {
 
 // ── Scheduled notifications ───────────────────────────────────────────────────
 
-// Wednesdays at 8:00 PM Eastern — prayer check-in
+// Wednesdays at 8:00 PM Eastern — meeting notes reminder
 cron.schedule(
   '0 20 * * 3',
   async () => {
@@ -48,13 +48,33 @@ cron.schedule(
       const tokens = await getFirestoreTokens();
       await sendExpoPush(
         tokens,
+        'Meeting Notes Posted',
+        'Check out what we talked about at today\'s FCA meeting.',
+        { type: 'meeting_notes' }
+      );
+      console.log(`[cron] Meeting notes notification sent to ${tokens.length} device(s)`);
+    } catch (e) {
+      console.error('[cron] Meeting notes notification failed:', e.message);
+    }
+  },
+  { timezone: 'America/New_York' }
+);
+
+// Thursdays at 5:00 PM Eastern — prayer check-in
+cron.schedule(
+  '0 17 * * 4',
+  async () => {
+    try {
+      const tokens = await getFirestoreTokens();
+      await sendExpoPush(
+        tokens,
         'How can we pray for you?',
-        'Tap to submit a prayer request before Wednesday\'s meeting.',
+        'Submit a prayer request and let your FCA family lift you up this week.',
         { type: 'prayer_checkin' }
       );
-      console.log(`[cron] Wednesday prayer check-in sent to ${tokens.length} device(s)`);
+      console.log(`[cron] Thursday prayer check-in sent to ${tokens.length} device(s)`);
     } catch (e) {
-      console.error('[cron] Wednesday prayer check-in failed:', e.message);
+      console.error('[cron] Thursday prayer check-in failed:', e.message);
     }
   },
   { timezone: 'America/New_York' }
