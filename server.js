@@ -50,7 +50,6 @@ app.get('/prayer', async (req, res) => {
       })
     });
     const d = await r.json();
-    if (!d.content) return res.status(500).json({ anthropic_error: d });
     res.json({ prayer: d.content[0].text.trim() });
   } catch(e) {
     res.status(500).json({ error: e.message });
@@ -73,7 +72,6 @@ app.get('/devotional', async (req, res) => {
       })
     });
     const d = await r.json();
-    if (!d.content) return res.status(500).json({ anthropic_error: d });
     const t = d.content[0].text.replace(/```json|```/g,'').trim();
     res.json(JSON.parse(t));
   } catch(e) {
