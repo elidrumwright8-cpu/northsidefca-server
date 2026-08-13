@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cron = require('node-cron');
 require('dotenv').config();
 
 const app = express();
@@ -7,6 +8,85 @@ app.use(cors());
 app.use(express.json());
 
 const KEY = process.env.ANTHROPIC_API_KEY;
+
+// ── Push notification helpers ─────────────────────────────────────────────────
+
+const FIREBASE_PROJECT = 'northsidefca-1b741';
+const FIREBASE_API_KEY = 'AIzaSyAYBOb17_xhep1B8MEDTNf79NqNkM9vh3E';
+
+async function getFirestoreTokens() {
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/pushTokens?pageSize=300&key=${FIREBASE_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!data.documents) return [];
+  return data.documents
+    .map((d) => d.fields?.token?.stringValue)
+    .filter(Boolean);
+}
+
+async function sendExpoPush(tokens, title, body, data = {}) {
+  if (!tokens.length) return;
+  for (let i = 0; i < tokens.length; i += 100) {
+    const chunk = tokens.slice(i, i + 100);
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(
+        chunk.map((token) => ({ to: token, title, body, sound: 'default', data }))
+      ),
+    });
+  }
+}
+
+// ── Scheduled notifications ───────────────────────────────────────────────────
+
+// Sundays at 7:00 PM Eastern — prayer check-in
+cron.schedule(
+  '0 19 * * 0',
+  async () => {
+    try {
+      const tokens = await getFirestoreTokens();
+      await sendExpoPush(
+        tokens,
+        'How can we pray for you?',
+        'Tap to submit a prayer request before Wednesday\'s meeting.',
+        { type: 'prayer_checkin' }
+      );
+      console.log(`[cron] Prayer check-in sent to ${tokens.length} device(s)`);
+    } catch (e) {
+      console.error('[cron] Prayer check-in failed:', e.message);
+    }
+  },
+  { timezone: 'America/New_York' }
+);
+
+// ── Admin-triggered notification endpoints ────────────────────────────────────
+
+app.post('/notify/prayer-checkin', async (req, res) => {
+  try {
+    const tokens = await getFirestoreTokens();
+    await sendExpoPush(
+      tokens,
+      'How can we pray for you?',
+      'Tap to submit a prayer request before Wednesday\'s meeting.',
+      { type: 'prayer_checkin' }
+    );
+    res.json({ sent: tokens.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/notify/meeting-notes', async (req, res) => {
+  try {
+    const { title = 'Meeting Notes Posted', body = 'Check out what we talked about at today\'s FCA meeting.' } = req.body ?? {};
+    const tokens = await getFirestoreTokens();
+    await sendExpoPush(tokens, title, body, { type: 'meeting_notes' });
+    res.json({ sent: tokens.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 app.get('/prayer', async (req, res) => {
   try {
