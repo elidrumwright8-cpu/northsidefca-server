@@ -40,9 +40,9 @@ async function sendExpoPush(tokens, title, body, data = {}) {
 
 // ── Scheduled notifications ───────────────────────────────────────────────────
 
-// Sundays at 7:00 PM Eastern — prayer check-in
+// Wednesdays at 8:00 PM Eastern — prayer check-in
 cron.schedule(
-  '0 19 * * 0',
+  '0 20 * * 3',
   async () => {
     try {
       const tokens = await getFirestoreTokens();
@@ -52,9 +52,9 @@ cron.schedule(
         'Tap to submit a prayer request before Wednesday\'s meeting.',
         { type: 'prayer_checkin' }
       );
-      console.log(`[cron] Prayer check-in sent to ${tokens.length} device(s)`);
+      console.log(`[cron] Wednesday prayer check-in sent to ${tokens.length} device(s)`);
     } catch (e) {
-      console.error('[cron] Prayer check-in failed:', e.message);
+      console.error('[cron] Wednesday prayer check-in failed:', e.message);
     }
   },
   { timezone: 'America/New_York' }
