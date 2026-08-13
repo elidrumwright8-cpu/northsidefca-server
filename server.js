@@ -40,26 +40,6 @@ async function sendExpoPush(tokens, title, body, data = {}) {
 
 // ── Scheduled notifications ───────────────────────────────────────────────────
 
-// Wednesdays at 8:00 PM Eastern — meeting notes reminder
-cron.schedule(
-  '0 20 * * 3',
-  async () => {
-    try {
-      const tokens = await getFirestoreTokens();
-      await sendExpoPush(
-        tokens,
-        'Meeting Notes Posted',
-        'Check out what we talked about at today\'s FCA meeting.',
-        { type: 'meeting_notes' }
-      );
-      console.log(`[cron] Meeting notes notification sent to ${tokens.length} device(s)`);
-    } catch (e) {
-      console.error('[cron] Meeting notes notification failed:', e.message);
-    }
-  },
-  { timezone: 'America/New_York' }
-);
-
 // Thursdays at 5:00 PM Eastern — prayer check-in
 cron.schedule(
   '0 17 * * 4',
