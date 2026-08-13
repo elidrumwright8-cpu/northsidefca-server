@@ -1,12 +1,12 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+const KEY = process.env.ANTHROPIC_API_KEY;
 
 app.get('/prayer', async (req, res) => {
   try {
