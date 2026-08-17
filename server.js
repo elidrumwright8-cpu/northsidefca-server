@@ -159,5 +159,48 @@ app.get('/devotional', async (req, res) => {
   }
 });
 
+app.post('/notes/generate-blanks', async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ error: 'text is required' });
+
+    const prompt = `You are helping create a fill-in-the-blank worksheet from FCA meeting notes for high school students.
+
+Given the notes below, identify 8–12 key theological terms, names, scripture references, or central phrases that are important to the teaching. These should be words/phrases students should remember.
+
+Return ONLY a valid JSON array of segments. Rules:
+- Every single word of the original text must appear in exactly one segment
+- Text segments carry everything between blanks
+- Blank segments carry the key word/phrase (the correct answer)
+- Use sequential IDs: "b1", "b2", etc.
+- Do not add, remove, or rephrase any words from the original text
+
+Format: [{"type":"text","content":"..."},{"type":"blank","id":"b1","answer":"..."},...]
+
+Notes:
+${text.trim()}`;
+
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    const d = await r.json();
+    const raw = d.content[0].text.replace(/```json|```/g, '').trim();
+    const segments = JSON.parse(raw);
+    res.json({ segments });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
