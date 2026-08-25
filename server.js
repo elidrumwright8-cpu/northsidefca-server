@@ -194,6 +194,9 @@ ${text.trim()}`;
       }),
     });
     const d = await r.json();
+    if (!d.content?.[0]?.text) {
+      throw new Error(d.error?.message ?? 'Anthropic API error — please try again');
+    }
     const raw = d.content[0].text.replace(/```json|```/g, '').trim();
     const segments = JSON.parse(raw);
     res.json({ segments });
