@@ -14,27 +14,60 @@ const KEY = process.env.ANTHROPIC_API_KEY;
 const FIREBASE_PROJECT = 'northsidefca-1b741';
 const FIREBASE_API_KEY = 'AIzaSyAYBOb17_xhep1B8MEDTNf79NqNkM9vh3E';
 
+// Reads every saved push token (all pages), without duplicates.
 async function getFirestoreTokens() {
-  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/pushTokens?pageSize=300&key=${FIREBASE_API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!data.documents) return [];
-  return data.documents
-    .map((d) => d.fields?.token?.stringValue)
-    .filter(Boolean);
+  const tokens = new Set();
+  let pageToken = '';
+  do {
+    const url =
+      `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/pushTokens` +
+      `?pageSize=300&key=${FIREBASE_API_KEY}` +
+      (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+    const res = await fetch(url);
+    const data = await res.json();
+    for (const d of data.documents ?? []) {
+      const t = d.fields?.token?.stringValue;
+      if (t) tokens.add(t);
+    }
+    pageToken = data.nextPageToken ?? '';
+  } while (pageToken);
+  return [...tokens];
 }
 
+async function postToExpo(messages) {
+  const res = await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(messages),
+  });
+  const json = await res.json().catch(() => ({}));
+  return { ok: res.ok, json };
+}
+
+// Expo refuses a request that mixes phones from two different app builds/projects
+// (for example version 1.2 and version 1.3.0 of the app). When that happens, Expo says
+// which phones belong to which project, so we resend each group on its own.
 async function sendExpoPush(tokens, title, body, data = {}) {
   if (!tokens.length) return;
+  const toMessages = (list) => list.map((token) => ({ to: token, title, body, sound: 'default', data }));
+
   for (let i = 0; i < tokens.length; i += 100) {
     const chunk = tokens.slice(i, i + 100);
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(
-        chunk.map((token) => ({ to: token, title, body, sound: 'default', data }))
-      ),
-    });
+    const { ok, json } = await postToExpo(toMessages(chunk));
+    const mixed = json.errors?.find((e) => e.code === 'PUSH_TOO_MANY_EXPERIENCE_IDS');
+
+    if (mixed) {
+      let groups = mixed.details && typeof mixed.details === 'object'
+        ? Object.values(mixed.details).filter((g) => Array.isArray(g) && g.length)
+        : [];
+      if (!groups.length) groups = chunk.map((t) => [t]); // no usable details: send one phone at a time
+      for (const group of groups) {
+        const r = await postToExpo(toMessages(group));
+        if (!r.ok) console.error('[push] group send failed:', JSON.stringify(r.json).slice(0, 500));
+      }
+    } else if (!ok || json.errors) {
+      console.error('[push] send failed:', JSON.stringify(json).slice(0, 500));
+    }
   }
 }
 
